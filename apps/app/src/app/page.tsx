@@ -1,7 +1,9 @@
+// Adapted from CopilotKit/OpenIntelligentUI@8391a94 apps/app/src/app/page.tsx (MIT, Copyright (c) Atai Barkai). Changes: with the Claude plan agent, the header button, the dialog and the gate are "Sign in with Claude" instead of API keys.
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import { ProviderKeysDialog } from "@/components/chat/provider-keys-dialog";
+import { PlanSignInDialog } from "@/components/chat/plan-signin-dialog";
 import { useProviderKeys } from "@/components/chat/provider-keys";
 import { KeyGatedChatView } from "@/components/chat/key-gated-chat-view";
 import Image from "next/image";
@@ -18,7 +20,9 @@ export default function HomePage() {
   useGenerativeUIExamples();
   useExampleSuggestions();
   const { agent } = useAgent();
-  const { newChat, hasKeys, keysOpen, setKeysOpen } = useProviderKeys();
+  const { newChat, hasKeys, keysOpen, setKeysOpen, planSignIn } = useProviderKeys();
+  const KeysDialog = planSignIn ? PlanSignInDialog : ProviderKeysDialog;
+  const keysLabel = planSignIn ? (hasKeys ? "Claude •" : "Sign in with Claude") : `API keys${hasKeys ? " •" : ""}`;
   const { copilotkit } = useCopilotKit();
   const [error, setError] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
@@ -87,7 +91,7 @@ export default function HomePage() {
             New chat
           </button>
           <button type="button" onClick={() => setKeysOpen(true)} disabled={agent.isRunning || retrying} aria-haspopup="dialog">
-            API keys{hasKeys ? " •" : ""}
+            {keysLabel}
           </button>
           <a
             href="https://github.com/CopilotKit/OpenIntelligentUI"
@@ -112,7 +116,7 @@ export default function HomePage() {
           </a>
         </nav>
       </header>
-      {keysOpen && <ProviderKeysDialog onClose={() => setKeysOpen(false)} disabled={agent.isRunning || retrying} />}
+      {keysOpen && <KeysDialog onClose={() => setKeysOpen(false)} disabled={agent.isRunning || retrying} />}
       <main id="main-content" className="chat-main">
         {error && (
           <div className="chat-error" role="alert">
@@ -124,7 +128,7 @@ export default function HomePage() {
             >
               Retry answer
             </button>
-            <button type="button" className="provider-keys-recover" disabled={retrying || agent.isRunning} onClick={() => setKeysOpen(true)}>API keys</button>
+            <button type="button" className="provider-keys-recover" disabled={retrying || agent.isRunning} onClick={() => setKeysOpen(true)}>{planSignIn ? "Sign in with Claude" : "API keys"}</button>
           </div>
         )}
         <div className="chat-content" ref={chatRoot}>
@@ -142,7 +146,7 @@ export default function HomePage() {
               welcomeMessageText: "What would you like to explore?",
               chatInputPlaceholder: "Ask anything…",
               chatDisclaimerText:
-                hasKeys ? "AI can make mistakes. Check important details." : "Add your OpenAI and Jev API keys to start. Keys clear when you refresh.",
+                hasKeys ? "AI can make mistakes. Check important details." : planSignIn ? "Sign in with Claude to start." : "Add your OpenAI and Jev API keys to start. Keys clear when you refresh.",
             }}
           />
         </div>

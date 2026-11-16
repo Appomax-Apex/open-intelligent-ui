@@ -1,7 +1,7 @@
-// Adapted from CopilotKit/OpenIntelligentUI@8391a94 apps/app/src/components/chat/provider-keys.tsx (MIT, Copyright (c) Atai Barkai). Changes: hasKeys is true when NEXT_PUBLIC_OIUI_SERVER_KEYS=1 (server keys).
+// Adapted from CopilotKit/OpenIntelligentUI@8391a94 apps/app/src/components/chat/provider-keys.tsx (MIT, Copyright (c) Atai Barkai). Changes: hasKeys is true when NEXT_PUBLIC_OIUI_SERVER_KEYS=1 (server keys); with NEXT_PUBLIC_OIUI_PLAN_SIGNIN=1 hasKeys is whether the agent is signed in with a Claude plan (planSignIn, signedIn, setSignedIn, refreshSignIn).
 "use client";
 
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 
 export type ProviderKeys = { openai: string; jev: string };
 type ProviderKeysContextValue = {
@@ -15,6 +15,11 @@ type ProviderKeysContextValue = {
   setDraft: (value: string) => void;
   keysOpen: boolean;
   setKeysOpen: (value: boolean) => void;
+  /** Appomax: the app runs on the Claude plan agent; the gate is its sign-in, not browser keys. */
+  planSignIn: boolean;
+  signedIn: boolean;
+  setSignedIn: (value: boolean) => void;
+  refreshSignIn: () => Promise<void>;
 };
 const ProviderKeysContext = createContext<ProviderKeysContextValue | null>(null);
 
@@ -23,6 +28,8 @@ const ProviderKeysContext = createContext<ProviderKeysContextValue | null>(null)
  * sends without browser keys, and the agent answers with its own key. Browser keys still override when entered.
  */
 const SERVER_KEYS = process.env.NEXT_PUBLIC_OIUI_SERVER_KEYS === "1";
+/** Appomax: set at build time when the app runs on the Claude plan agent (scripts/run-plan.sh). */
+export const PLAN_SIGNIN = process.env.NEXT_PUBLIC_OIUI_PLAN_SIGNIN === "1";
 
 export function ProviderKeysProvider({ children }: { children: ReactNode }) {
   // Deliberately memory-only: never put credentials in browser storage or agent state.
@@ -31,14 +38,27 @@ export function ProviderKeysProvider({ children }: { children: ReactNode }) {
   const [draft, setDraft] = useState("");
   const [keysOpen, setKeysOpen] = useState(false);
   const newChat = () => { setDraft(""); setSession((value) => value + 1); };
+  const [signedIn, setSignedIn] = useState(false);
+  const refreshSignIn = useCallback(async () => {
+    if (!PLAN_SIGNIN) return;
+    try {
+      const response = await fetch("/api/plan-signin/status", { cache: "no-store" });
+      const data = await response.json();
+      setSignedIn(response.ok && data?.signedIn === true);
+    } catch {
+      setSignedIn(false);
+    }
+  }, []);
+  useEffect(() => { void refreshSignIn(); }, [refreshSignIn]);
   return (
     <ProviderKeysContext.Provider value={{
       headers: keys ? { "x-openai-api-key": keys.openai, "x-jev-api-key": keys.jev } : undefined,
-      hasKeys: SERVER_KEYS || keys !== null,
+      hasKeys: PLAN_SIGNIN ? signedIn : SERVER_KEYS || keys !== null,
       session,
       save: (value) => { setKeys(value); setKeysOpen(false); setSession((value) => value + 1); },
       clear: () => { setKeys(null); newChat(); },
       newChat, draft, setDraft, keysOpen, setKeysOpen,
+      planSignIn: PLAN_SIGNIN, signedIn, setSignedIn, refreshSignIn,
     }}>
       {children}
     </ProviderKeysContext.Provider>

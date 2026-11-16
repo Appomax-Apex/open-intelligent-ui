@@ -73,3 +73,7 @@ node_modules
 
 # pnpm package store (kept in-repo so it can hard-link into node_modules)
 .pnpm-store/
+
+# Appomax plan sign-in run logs and build
+.oiui-plan-logs/
+.next-plan/

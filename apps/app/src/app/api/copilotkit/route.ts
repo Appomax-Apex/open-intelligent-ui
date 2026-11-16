@@ -1,3 +1,4 @@
+// Adapted from CopilotKit/OpenIntelligentUI@8391a94 apps/app/src/app/api/copilotkit/route.ts (MIT, Copyright (c) Atai Barkai). Changes: OIUI_AGENT=claude points the runtime at the Claude plan agent with the shared secret, and sends it no browser keys.
 import {
   CopilotRuntime,
   ExperimentalEmptyAdapter,
@@ -6,6 +7,7 @@ import {
 import { NextRequest, after } from "next/server";
 import { readProviderHeaders, PROVIDER_KEY_INPUT_ERROR } from "@/lib/provider-keys";
 import { buildRuntimeOptions } from "@/lib/copilotkit-runtime-options";
+import { planAgent } from "@/lib/plan-agent";
 import { getLaunchTelemetry, observeRunResult, runtimeMethod } from "@/lib/launch-telemetry";
 
 // Simple in-memory sliding-window rate limiter (per IP)
@@ -50,7 +52,13 @@ export const POST = async (req: NextRequest) => {
     return Response.json({ error: PROVIDER_KEY_INPUT_ERROR }, { status: 400, headers: { "Cache-Control": "no-store" } });
   }
   // Construct the agent per request so one visitor's keys cannot reach another.
-  const runtimeOptions = buildRuntimeOptions({
+  // Appomax: OIUI_AGENT=claude runs on the Claude plan agent, which takes no browser keys.
+  const plan = planAgent();
+  const runtimeOptions = buildRuntimeOptions(plan ? {
+    langgraphUrl: plan.url,
+    mcpServerUrl: process.env.MCP_SERVER_URL,
+    agentHeaders: plan.headers,
+  } : {
     langgraphUrl: process.env.LANGGRAPH_DEPLOYMENT_URL,
     mcpServerUrl: process.env.MCP_SERVER_URL,
     providerHeaders,

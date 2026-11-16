@@ -1,0 +1,26 @@
+[project]
+name = "oiui-agent-claude"
+version = "0.1.0"
+description = "Open Intelligent UI agent on the Claude Agent SDK (plan sign-in)"
+requires-python = ">=3.12"
+dependencies = [
+    # Same pins as OpenBot agent-claude-sdk/requirements.txt.
+    "ag-ui-claude-sdk==0.1.5",
+    "claude-agent-sdk==0.2.152",
+    "fastapi==0.136.1",
+    "uvicorn==0.46.0",
+    "httpx==0.28.1",
+    # The OIUI tools and Jev router in ../agent/src are reused as they are; they import LangChain.
+    "langchain==1.2.0",
+    "langgraph==1.0.7",
+    "langgraph-prebuilt==1.0.8",
+    "langchain-core==1.4.4",
+]
+
+[dependency-groups]
+dev = ["pytest==9.0.2", "pytest-asyncio==1.3.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
