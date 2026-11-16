@@ -18,10 +18,11 @@ pnpm install --frozen-lockfile
 pnpm --filter @repo/design-system build
 (cd apps/agent && uv sync)
 LOG=.oiui-1a-logs; mkdir -p "$LOG"
+# NEXT_PUBLIC_OIUI_SERVER_KEYS=1: the chat sends without browser keys; the agent answers with the room key above.
 # Production mode by default: `next dev` compiles each page on first request and needs more memory than this runtime's
 # ~6 GB cgroup leaves (it was OOM-killed mid-compile). OIUI_DEV=1 runs the dev server instead.
 if [ "${OIUI_DEV:-0}" = 1 ]; then APP_CMD="pnpm exec next dev -H 127.0.0.1 -p 3000"; else
-  (cd apps/app && env LANGGRAPH_DEPLOYMENT_URL=http://127.0.0.1:8123 pnpm exec next build) >"$LOG/app-build.log" 2>&1
+  (cd apps/app && env LANGGRAPH_DEPLOYMENT_URL=http://127.0.0.1:8123 NEXT_PUBLIC_OIUI_SERVER_KEYS=1 pnpm exec next build) >"$LOG/app-build.log" 2>&1
   APP_CMD="pnpm exec next start -H 127.0.0.1 -p 3000"
 fi
 # Agent: the keys exist only in this child's environment (apps/agent reads os.environ; no .env file is written).
