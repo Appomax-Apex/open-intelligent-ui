@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Same app environment as scripts/run-1a.sh (no keys, telemetry off, 127.0.0.1 only).
+set -euo pipefail
+cd /workspaces/copilotkit-pilot/open-intelligent-ui/apps/app
+export PATH="$HOME/.local/bin:$PATH" COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+export DO_NOT_TRACK=1 COPILOTKIT_TELEMETRY_DISABLED=1 COPILOTKIT_TELEMETRY_SAMPLE_RATE=0
+export SCARF_ANALYTICS=false NEXT_TELEMETRY_DISABLED=1 TURBO_TELEMETRY_DISABLED=1 LANGSMITH_TRACING=false LANGCHAIN_TRACING_V2=false
+unset NEXT_PUBLIC_POSTHOG_KEY OPENAI_API_KEY ANTHROPIC_API_KEY TYPESAFE_API_KEY MCP_SERVER_URL OIUI_ANTHROPIC_KEY JEV_TYPESAFE_KEY
+exec env LANGGRAPH_DEPLOYMENT_URL=http://127.0.0.1:8123 RATE_LIMIT_ENABLED=false pnpm exec next start -H 127.0.0.1 -p 3000
