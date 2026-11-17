@@ -1,3 +1,4 @@
+# Adapted from CopilotKit/OpenIntelligentUI@8391a94 apps/agent/src/model.py (MIT, Copyright (c) Atai Barkai). Changes: server-key path unwraps CredentialScopedModel (no double streaming); adaptive thinking with drop_block.
 """Chat model factory for the agent."""
 
 import os
@@ -43,6 +44,11 @@ def build_model(*, allow_unconfigured: bool = False) -> BaseChatModel:
     return ChatAnthropic(
         model=model_name,
         max_tokens=MAX_TOKENS,
+        # Appomax: the app changes the system prompt and tools between turns (Jev's per-turn note, tool filtering,
+        # system messages moved to the head), so replayed thinking blocks no longer match their conversation and
+        # current Claude models 400. drop_block drops those blocks instead (preserved thinking).
+        thinking={"type": "adaptive", "block_binding": {"prefix_mismatch_behavior": "drop_block"}},
+        betas=["thinking-binding-controls-2026-08-01"],
     )
 
 
@@ -64,7 +70,10 @@ def request_model(fallback):
     from src.credentials import current_credentials
     credentials = current_credentials.get()
     if credentials is None:
-        return fallback
+        # Appomax: with server keys, hand LangChain the inner model itself. Streaming through CredentialScopedModel
+        # re-yields every chunk of an inner model that streams too, so each chunk was reported twice (the AG-UI
+        # stream then carried every TOOL_CALL_ARGS delta twice and the tool arguments were broken JSON).
+        return getattr(fallback, "fallback", fallback)
     from langchain_openai import ChatOpenAI
     from openai import AsyncOpenAI, OpenAI, DefaultAsyncHttpxClient, DefaultHttpxClient
 

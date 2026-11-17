@@ -1,3 +1,4 @@
+/* Adapted from CopilotKit/OpenIntelligentUI@8391a94 apps/app/src/app/globals.css (MIT, Copyright (c) Atai Barkai). Changes: color-scheme follows the app theme (light, or dark under .dark) instead of "light dark", so generated UI frames follow the app, not the OS. */
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -101,11 +102,12 @@
   /* CopilotKit accent override */
   --copilot-kit-primary-color: var(--color-lilac-dark);
 
-  color-scheme: light dark;
+  color-scheme: light;
 }
 
 /* === Dark Mode === */
 :root.dark {
+  color-scheme: dark;
   --background: #0a0a0a;
   --foreground: #ededed;
 
