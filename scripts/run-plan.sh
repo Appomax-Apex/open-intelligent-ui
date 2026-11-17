@@ -33,7 +33,7 @@ export NEXT_DIST_DIR=.next-plan
 # moves the token into memory and out of its environment at start.
 ( cd apps/agent-claude && exec env ${PLAN_TOKEN:+CLAUDE_PLAN_TOKEN="$PLAN_TOKEN"} OIUI_AGENT_SECRET="$AGENT_SECRET" \
     TYPESAFE_API_KEY="$JEV_TYPESAFE_KEY" JEV_MODEL=jev-latest OIUI_MODEL="$MODEL" \
-    uv run --frozen uvicorn --factory oiui_claude.main:build --host 127.0.0.1 --port "$AGENT_PORT" ) >"$LOG/agent.log" 2>&1 &
+    uv run --frozen uvicorn --factory oiui_claude.main:build --host 127.0.0.1 --port "$AGENT_PORT" --no-proxy-headers ) >"$LOG/agent.log" 2>&1 &
 AGENT=$!
 unset PLAN_TOKEN
 # App: no model keys; the shared secret to reach the agent. RATE_LIMIT_ENABLED is read by api/copilotkit/route.ts.
