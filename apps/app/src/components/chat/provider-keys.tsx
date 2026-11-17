@@ -1,4 +1,4 @@
-// Adapted from CopilotKit/OpenIntelligentUI@8391a94 apps/app/src/components/chat/provider-keys.tsx (MIT, Copyright (c) Atai Barkai). Changes: hasKeys is true when NEXT_PUBLIC_OIUI_SERVER_KEYS=1 (server keys); with NEXT_PUBLIC_OIUI_PLAN_SIGNIN=1 hasKeys is whether the agent is signed in with a Claude plan (planSignIn, signedIn, setSignedIn, refreshSignIn).
+// Adapted from CopilotKit/OpenIntelligentUI@8391a94 apps/app/src/components/chat/provider-keys.tsx (MIT, Copyright (c) Atai Barkai). Changes: hasKeys is true when NEXT_PUBLIC_OIUI_SERVER_KEYS=1 (server keys); with NEXT_PUBLIC_OIUI_PLAN_SIGNIN=1 hasKeys is whether the agent is signed in with a Claude plan (planSignIn, signedIn, setSignedIn, refreshSignIn); a failed status check keeps the last answer and retries, and focus re-checks.
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
@@ -41,15 +41,28 @@ export function ProviderKeysProvider({ children }: { children: ReactNode }) {
   const [signedIn, setSignedIn] = useState(false);
   const refreshSignIn = useCallback(async () => {
     if (!PLAN_SIGNIN) return;
-    try {
-      const response = await fetch("/api/plan-signin/status", { cache: "no-store" });
-      const data = await response.json();
-      setSignedIn(response.ok && data?.signedIn === true);
-    } catch {
-      setSignedIn(false);
+    // A failed check (a tunnel hiccup, an HTML error page) keeps the last answer and retries; only the
+    // agent's own answer changes it.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const response = await fetch("/api/plan-signin/status", { cache: "no-store" });
+        const data = await response.json();
+        if (response.ok && typeof data?.signedIn === "boolean") {
+          setSignedIn(data.signedIn);
+          return;
+        }
+      } catch {
+        // retry below
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
     }
   }, []);
-  useEffect(() => { void refreshSignIn(); }, [refreshSignIn]);
+  useEffect(() => {
+    void refreshSignIn();
+    const onFocus = () => { void refreshSignIn(); };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [refreshSignIn]);
   return (
     <ProviderKeysContext.Provider value={{
       headers: keys ? { "x-openai-api-key": keys.openai, "x-jev-api-key": keys.jev } : undefined,

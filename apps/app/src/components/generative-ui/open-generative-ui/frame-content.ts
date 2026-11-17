@@ -1,3 +1,4 @@
+// Adapted from CopilotKit/OpenIntelligentUI@8391a94 apps/app/src/components/generative-ui/open-generative-ui/frame-content.ts (MIT, Copyright (c) Atai Barkai). Changes: pinColorScheme makes the frame follow the app theme, not the OS (a sandboxed frame reads the OS setting).
 import { TRIP_ANIMATOR_SCRIPT } from "./trip-animator";
 import {
   THEME_CSS,
@@ -12,6 +13,25 @@ export const PREVIEW_FRAME_CONTENT = "<head></head><body></body>";
 
 const DESIGN_SYSTEM_CSS = `${THEME_CSS}\n${SVG_CLASSES_CSS}\n${FORM_STYLES_WITH_STAGGER_CSS}`;
 const DESIGN_SYSTEM_STYLE_TAG = `<style>${DESIGN_SYSTEM_CSS}</style>`;
+/**
+ * The app chooses its own theme (light unless the page has the .dark class), but a sandboxed frame's
+ * `prefers-color-scheme` reads the OS. On a dark OS a light app got dark-theme tokens in its widgets:
+ * pale text on the white page. Rewrite the frame's dark/light media features to match the app theme
+ * (an always-true or always-false condition) and set its color-scheme for form controls.
+ */
+export function appIsDark(): boolean {
+  return typeof document !== "undefined" && document.documentElement.classList.contains("dark");
+}
+const ALWAYS = "(min-width: 0px)";
+const NEVER = "(max-width: -1px)";
+export function pinColorScheme(text: string, dark: boolean = appIsDark()): string {
+  return text.replace(/\(\s*prefers-color-scheme\s*:\s*(dark|light)\s*\)/gi, (_m, want: string) =>
+    (want.toLowerCase() === "dark") === dark ? ALWAYS : NEVER
+  );
+}
+const colorSchemeStyleTag = (dark: boolean) =>
+  `<meta name="color-scheme" content="${dark ? "dark" : "light"}"><style>:root { color-scheme: ${dark ? "dark" : "light"}; }</style>`;
+
 const OVERFLOW_HIDDEN_STYLE_TAG =
   "<style>html, body { overflow: hidden !important; }</style>";
 
@@ -50,12 +70,15 @@ export function ensureHead(html: string): string {
  * after the opening <head> tag so it precedes anything the generated document
  * put in its own head.
  */
-export function buildFinalFrameContent(html: string, css?: string): string {
+export function buildFinalFrameContent(html: string, css?: string, dark: boolean = appIsDark()): string {
+  html = pinColorScheme(html, dark);
+  css = css ? pinColorScheme(css, dark) : css;
   const headContent =
     CSP_META_TAG +
+    colorSchemeStyleTag(dark) +
     IMPORTMAP_SCRIPT_TAG +
     TRIP_ANIMATOR_SCRIPT +
-    DESIGN_SYSTEM_STYLE_TAG +
+    pinColorScheme(DESIGN_SYSTEM_STYLE_TAG, dark) +
     (css ? `<style>${css}</style>` : "");
   const withHead = ensureHead(html);
   const openTag = withHead.match(/<head[^>]*>/i);
@@ -72,11 +95,12 @@ export function buildFinalFrameContent(html: string, css?: string): string {
  */
 export function buildPreviewHeadContent(
   css?: string,
-  previewStyles?: string
+  previewStyles?: string,
+  dark: boolean = appIsDark()
 ): string {
-  const parts = [OVERFLOW_HIDDEN_STYLE_TAG, DESIGN_SYSTEM_STYLE_TAG];
-  if (css) parts.push(`<style>${css}</style>`);
-  if (previewStyles) parts.push(previewStyles);
+  const parts = [OVERFLOW_HIDDEN_STYLE_TAG, colorSchemeStyleTag(dark), pinColorScheme(DESIGN_SYSTEM_STYLE_TAG, dark)];
+  if (css) parts.push(`<style>${pinColorScheme(css, dark)}</style>`);
+  if (previewStyles) parts.push(pinColorScheme(previewStyles, dark));
   return parts.join("");
 }
 
@@ -89,9 +113,9 @@ export function buildPreviewHeadContent(
  * FORM_STYLES_WITH_STAGGER_CSS apply only to documents that wrap content in
  * #content — i.e. the MCP rail — and are inert here.)
  */
-export function buildPreviewBodyMorph(body: string): string {
+export function buildPreviewBodyMorph(body: string, dark: boolean = appIsDark()): string {
   return `(function() {
-  var html = ${JSON.stringify(body)};
+  var html = ${JSON.stringify(pinColorScheme(body, dark))};
   if (typeof Idiomorph !== "undefined" && Idiomorph && Idiomorph.morph) {
     try {
       Idiomorph.morph(document.body, html, {
